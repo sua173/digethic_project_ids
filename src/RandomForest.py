@@ -5,12 +5,13 @@ import sys
 import time
 import joblib
 import pandas as pd
+import numpy as np
 import matplotlib.pyplot as plt
 import shap
 
 from sklearn.model_selection import train_test_split, GridSearchCV
-from sklearn.metrics import f1_score, precision_score, recall_score
 from sklearn.ensemble import RandomForestClassifier
+from sklearn.metrics import f1_score, precision_score, recall_score
 from sklearn.preprocessing import MinMaxScaler
 
 warnings.filterwarnings("ignore")
@@ -226,15 +227,40 @@ plt.tight_layout()
 plt.show(block=False)
 
 # %%
-# 3. Compare number of features and cumulative importance
-print("\nStep 3: Compare number of features and cumulative importance")
-target_features_list = [1, 10, 25, 50, 75, 100, 125, 150, 175, 200]
+# 3. Performance validation with different feature counts
+print("\nStep 3: Performance evaluation with different feature counts")
+if dev_mode:
+    target_features_list = [5, 10]
+else:
+    target_features_list = [
+        5,
+        10,
+        15,
+        20,
+        25,
+        30,
+        35,
+        40,
+        45,
+        50,
+        55,
+        60,
+        65,
+        70,
+        75,
+        80,
+        85,
+        90,
+        95,
+        100,
+    ]
 results_comparison = []
 
 for n_features in target_features_list:
-    # select top n_features based on importance
-    top_features_df = importance_df.head(n_features)
-    top_features_list = top_features_df["feature"].tolist()
+    print(f"\nValidating with {n_features} features")
+
+    # select top n_features based on F-scores
+    top_features = importance_df.head(n_features)["feature"].tolist()
 
     X_train_split, X_val_split, y_train_split, y_val_split = train_test_split(
         X_train,
@@ -244,127 +270,208 @@ for n_features in target_features_list:
         stratify=y_train,
     )
 
-    X_train_split_selected = X_train_split[top_features_list]
-    X_val_split_selected = X_val_split[top_features_list]
-
-    # print(f"X_train_split_selected.shape: {X_train_split_selected.shape}")
-    # print(f"X_val_split_selected.shape: {X_val_split_selected.shape}")
+    X_train_split_selected = X_train_split[top_features]
+    X_val_split_selected = X_val_split[top_features]
 
     # Validate model for selected features
-    test_rf = RandomForestClassifier(
-        n_estimators=20,
-        max_depth=5,
-        min_samples_split=5,
-        min_samples_leaf=2,
-        max_features="sqrt",
-        random_state=random_state,
-    )
+    try:
+        test_rf = RandomForestClassifier(
+            n_estimators=20,
+            max_depth=5,
+            min_samples_split=5,
+            min_samples_leaf=2,
+            max_features="sqrt",
+            random_state=random_state,
+        )
 
-    test_rf.fit(X_train_split_selected, y_train_split)
-    y_pred = test_rf.predict(X_val_split_selected)
+        test_rf.fit(X_train_split_selected, y_train_split)
 
-    # metrics calculation
-    accuracy = test_rf.score(X_val_split_selected, y_val_split)
-    f1 = f1_score(
-        y_val_split, y_pred, average="weighted"
-    )  # weighted average for unbalanced classes
-    precision = precision_score(y_val_split, y_pred, average="weighted")
-    recall = recall_score(y_val_split, y_pred, average="weighted")
-    print(
-        f"Features: {n_features:2d}, F1(weighted): {f1:.4f}, "
-        f"Accuracy: {accuracy:.4f}, Precision: {precision:.4f}, Recall: {recall:.4f}"
-    )
+        y_pred_val = test_rf.predict(X_val_split_selected)
 
-    # cumulative importance of selected features
-    cumulative_importance = top_features_df["importance"].sum()
+        y_true_binary = (y_val_split != NORMAL_LABEL).astype(
+            int
+        )  # normal: 0, anomaly: 1
+        y_pred_binary = (y_pred_val != NORMAL_LABEL).astype(
+            int
+        )  # normal: 0, anomaly: 1
 
-    results_comparison.append(
-        {
-            "n_features": n_features,
-            "accuracy": accuracy,
-            "f1_weighted": f1,
-            "precision": precision,
-            "recall": recall,
-            "cumulative_importance": cumulative_importance,
-        }
-    )
+        precision = precision_score(y_true_binary, y_pred_binary, zero_division=0)
+        recall = recall_score(y_true_binary, y_pred_binary, zero_division=0)
+        f1 = f1_score(y_true_binary, y_pred_binary, zero_division=0)
 
-# visualize results
+        # Normal and anomaly detection rates
+        normal_total = np.sum(y_true_binary == 0)
+        anomaly_total = np.sum(y_true_binary == 1)
+
+        if normal_total > 0:
+            normal_detection_rate = (
+                np.sum((y_true_binary == 0) & (y_pred_binary == 0)) / normal_total
+            )
+        else:
+            normal_detection_rate = 0.0
+
+        if anomaly_total > 0:
+            anomaly_detection_rate = (
+                np.sum((y_true_binary == 1) & (y_pred_binary == 1)) / anomaly_total
+            )
+        else:
+            anomaly_detection_rate = 0.0
+
+        # outlier fraction
+        outlier_fraction = np.sum(y_pred_val == -1) / len(y_pred_val)
+
+        results_comparison.append(
+            {
+                "n_features": n_features,
+                "precision": precision,
+                "recall": recall,
+                "f1_score": f1,
+                "normal_detection_rate": normal_detection_rate,
+                "anomaly_detection_rate": anomaly_detection_rate,
+                "outlier_fraction": outlier_fraction,
+            }
+        )
+
+        print(
+            f"  F1: {f1:.4f}, Normal Det.: {normal_detection_rate:.4f}, "
+            f"Anomaly Det.: {anomaly_detection_rate:.4f}, Outlier: {outlier_fraction:.4f}"
+        )
+
+    except Exception as e:
+        print(f"  Error: {e}")
+        results_comparison.append(
+            {
+                "n_features": n_features,
+                "precision": 0.0,
+                "recall": 0.0,
+                "f1_score": 0.0,
+                "normal_detection_rate": 0.0,
+                "anomaly_detection_rate": 0.0,
+                "outlier_fraction": 0.0,
+                "training_samples": 0,
+            }
+        )
+
+print(f"\nCompleted evaluation for {len(results_comparison)} feature configurations.")
+
+# isualization and analysis
+print("Results visualization")
+
 results_df = pd.DataFrame(results_comparison)
-fig, ((ax1, ax2), (ax3, ax4)) = plt.subplots(2, 2, figsize=(15, 12))
+print("\nResults Summary:")
+print(results_df.round(4))
 
-# n_features vs F1 Score
+fig, ((ax1, ax2), (ax3, ax4)) = plt.subplots(2, 2, figsize=(16, 12))
+
+# F1-Score
 ax1.plot(
-    results_df["n_features"], results_df["f1_weighted"], "bo-", label="F1 Weighted"
+    results_df["n_features"], results_df["f1_score"], "bo-", linewidth=2, markersize=8
 )
 ax1.set_xlabel("Number of Features")
 ax1.set_ylabel("F1 Score")
-ax1.set_title("F1 Score vs Number of Features")
-ax1.legend()
+ax1.set_title("OneClass SVM: F1 Score vs Number of Features")
 ax1.grid(True, alpha=0.3)
+ax1.set_ylim(0, 1)
 
-# n_features vs Precision/Recall
-ax2.plot(results_df["n_features"], results_df["precision"], "go-", label="Precision")
-ax2.plot(results_df["n_features"], results_df["recall"], "mx-", label="Recall")
+# Detection Rates
+ax2.plot(
+    results_df["n_features"],
+    results_df["normal_detection_rate"],
+    "go-",
+    label="Normal Detection Rate",
+    linewidth=2,
+    markersize=8,
+)
+ax2.plot(
+    results_df["n_features"],
+    results_df["anomaly_detection_rate"],
+    "ro-",
+    label="Anomaly Detection Rate",
+    linewidth=2,
+    markersize=8,
+)
 ax2.set_xlabel("Number of Features")
-ax2.set_ylabel("Score")
-ax2.set_title("Precision/Recall vs Number of Features")
+ax2.set_ylabel("Detection Rate")
+ax2.set_title("OneClass SVM: Detection Rates vs Number of Features")
 ax2.legend()
 ax2.grid(True, alpha=0.3)
+ax2.set_ylim(0, 1)
 
-# n_features vs Cumulative Feature Importance
+# Precision vs Recall
 ax3.plot(
     results_df["n_features"],
-    results_df["cumulative_importance"],
+    results_df["precision"],
+    "mo-",
+    label="Precision",
+    linewidth=2,
+    markersize=8,
+)
+ax3.plot(
+    results_df["n_features"],
+    results_df["recall"],
     "co-",
-    label="Cumulative Importance",
+    label="Recall",
+    linewidth=2,
+    markersize=8,
 )
 ax3.set_xlabel("Number of Features")
-ax3.set_ylabel("Cumulative Feature Importance")
-ax3.set_title("Feature Importance Coverage")
+ax3.set_ylabel("Score")
+ax3.set_title("OneClass SVM: Precision/Recall vs Number of Features")
+ax3.legend()
 ax3.grid(True, alpha=0.3)
+ax3.set_ylim(0, 1)
 
-# f1 Score vs Accuracy Comparison
-ax4.plot(results_df["n_features"], results_df["accuracy"], "ko-", label="Accuracy")
+# Outlier Fraction
 ax4.plot(
-    results_df["n_features"], results_df["f1_weighted"], "bx-", label="F1 Weighted"
+    results_df["n_features"],
+    results_df["outlier_fraction"],
+    "ko-",
+    linewidth=2,
+    markersize=8,
 )
 ax4.set_xlabel("Number of Features")
-ax4.set_ylabel("Score")
-ax4.set_title("Accuracy vs F1 Score Comparison")
-ax4.legend()
+ax4.set_ylabel("Outlier Fraction")
+ax4.set_title("OneClass SVM: Outlier Fraction vs Number of Features")
 ax4.grid(True, alpha=0.3)
 
 plt.tight_layout()
 plt.show(block=False)
 
-# reusult summary
-print("\n=== Feature Selection Results Summary (All Metrics) ===")
-print(results_df.round(4))
+print("Optimal feature selection")
 
-# optimal feature selection based on F1 score
-best_f1_idx = results_df["f1_weighted"].idxmax()
-best_f1_result = results_df.iloc[best_f1_idx]
+# Calculate balanced score
+results_df["balanced_score"] = (
+    results_df["f1_score"]
+    + results_df["normal_detection_rate"]
+    + results_df["anomaly_detection_rate"]
+) / 3
 
-print("\n=== Optimal Feature Selection Results ===")
-print(
-    f"Best F1 (weighted): {best_f1_result['f1_weighted']:.4f} with {best_f1_result['n_features']} features"
-)
-print(f"  - Accuracy: {best_f1_result['accuracy']:.4f}")
-print(f"  - Precision: {best_f1_result['precision']:.4f}")
-print(f"  - Recall: {best_f1_result['recall']:.4f}")
-print(f"  - Feature importance coverage: {best_f1_result['cumulative_importance']:.3f}")
+# NaN values handling
+valid_results = results_df[results_df["balanced_score"] > 0]
 
-print("\nOptimal Feature Selection based on F1 Score")
-print("=== optimal features ===")
-optimal_f1_features = int(best_f1_result["n_features"])
-optimal_features_list = importance_df.head(optimal_f1_features)["feature"].tolist()
+if len(valid_results) > 0:
+    best_idx = valid_results["balanced_score"].idxmax()
+    best_result = valid_results.loc[best_idx]
+
+    optimal_n_features = int(best_result["n_features"])
+    optimal_features_list = importance_df.head(optimal_n_features)["feature"].tolist()
+
+    print(f"Optimal number of features: {optimal_n_features}")
+    print(f"F1 Score: {best_result['f1_score']:.4f}")
+    print(f"Normal Detection Rate: {best_result['normal_detection_rate']:.4f}")
+    print(f"Anomaly Detection Rate: {best_result['anomaly_detection_rate']:.4f}")
+    print(f"Balanced Score: {best_result['balanced_score']:.4f}")
+    print(f"Outlier Fraction: {best_result['outlier_fraction']:.4f}")
+
+    print("\nSelected features for OneClass SVM:")
+    for i, (_, row) in enumerate(importance_df.head(optimal_n_features).iterrows(), 1):
+        print(f"{i:2d}. {row['feature']:<35} {row['importance']:.4f}")
 
 X_train_optimal = X_train[optimal_features_list]
 X_test_optimal = X_test[optimal_features_list]
 
-print(f"optimal_features_list = {optimal_features_list}")
-print(f"X_train_optimal.shape: {X_train_optimal.shape}")
+print(f"\nX_train_optimal.shape: {X_train_optimal.shape}")
+print(f"X_test_optimal.shape: {X_test_optimal.shape}")
 
 # %%
 # 4. Hyperparameter tuning
