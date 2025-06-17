@@ -1,0 +1,13 @@
+.venv/
+cache/
+dev/
+__pycache__/
+.pytest_cache/
+*/.ipynb_checkpoints/
+models/
+tmp/
+.DS_Store
+Prototype_*
+tcpdump_dataframe.pkl
+cic_dataframe.pkl
+cic_dataframe.pkl.zip

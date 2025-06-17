@@ -1,0 +1,51 @@
+services:
+  victim:
+    build:
+      context: ./victim
+    networks:
+      ids_network:
+        ipv4_address: 172.28.1.2
+    volumes:
+      - ./pcap:/pcap
+      - ./victim/start.sh:/start.sh
+    tty: true
+    stdin_open: true
+    command: sh -c "chmod +x /start.sh && /start.sh"
+
+  attacker:
+    build:
+      context: ./attacker
+    networks:
+      ids_network:
+        ipv4_address: 172.28.1.3
+    volumes:
+      - ./attacker/scripts:/scripts
+      - ./attacker/logs:/logs
+    tty: true
+    stdin_open: true
+    #command: sh -c "chmod +x /scripts/attack.sh && /scripts/attack.sh && tail -f /dev/null"
+    command: sh -c "tail -f /dev/null"
+
+  normal_client:
+    build:
+      context: ./normal_client
+    networks:
+      ids_network:
+        ipv4_address: 172.28.1.4
+    volumes:
+      - ./normal_client/scripts:/scripts
+    tty: true
+    stdin_open: true
+    environment:
+      - VICTIM_IP=victim
+      - INTERVAL=1
+    command: sh -c "chmod +x /scripts/normal_traffic.sh && /scripts/normal_traffic.sh"
+
+networks:
+  ids_network:
+    driver: bridge
+    ipam:
+      driver: default
+      config:
+        - subnet: 172.28.0.0/16
+          gateway: 172.28.0.1
