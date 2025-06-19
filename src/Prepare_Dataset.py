@@ -51,8 +51,6 @@ else:
 
 data_dir = os.path.join(project_root, "data")
 
-print(f"Project root directory: {project_root}\nData directory: {data_dir}")
-
 idle_timeout, active_timeout = get_config()
 print(f"idle_timeout: {idle_timeout}, active_timeout: {active_timeout}")
 
@@ -72,7 +70,9 @@ def pcap_to_nfstream(pcap_file, idle_timeout=10, active_timeout=120, save_csv=Tr
     print("Converting pcap file to NFStreamer DataFrame...")
     # check if pcap file exists
     if not os.path.exists(pcap_file):
-        raise FileNotFoundError(f"The pcap file {pcap_file} does not exist.")
+        raise FileNotFoundError(
+            f"The pcap file {os.path.basename(pcap_file)} does not exist."
+        )
     streamer = NFStreamer(
         source=pcap_file,
         statistical_analysis=True,
@@ -95,7 +95,9 @@ def pcap_to_nfstream(pcap_file, idle_timeout=10, active_timeout=120, save_csv=Tr
         dataframe.to_csv(
             f"{subdirectory}/{weekday}-WorkingHours.pcap_nfstream.csv", index=False
         )
-        print(f"{pcap_file} converted to NFStreamer DataFrame and saved as CSV.")
+        print(
+            f"{os.path.basename(pcap_file)} converted to NFStreamer DataFrame and saved as CSV."
+        )
 
     return dataframe
 
@@ -119,7 +121,7 @@ for pcap_file in pcap_files:
         )
         print()
     except FileNotFoundError:
-        print(f"File {pcap_file} not found.")
+        print(f"File {os.path.basename(pcap_file)} not found.")
         exit(1)
 
 # %% [markdown]
@@ -583,7 +585,7 @@ for filename in filenames:
     print(df["label"].value_counts())
 
     df.to_csv(csv_labeled_file, index=False)
-    print(f"Saved labeled file: {csv_labeled_file}")
+    print(f"Saved labeled file: {os.path.basename(csv_labeled_file)}")
 
     print(f"#rows: {df.shape[0]}")
     print(f"#columns: {df.shape[1]}")

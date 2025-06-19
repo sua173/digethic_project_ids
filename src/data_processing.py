@@ -1,3 +1,4 @@
+import os
 import pandas as pd
 import numpy as np
 from sklearn.preprocessing import OneHotEncoder
@@ -209,7 +210,7 @@ class DataProcessor:
             .replace([np.inf, -np.inf], 0)
             .fillna(0)
         )
-        dataframe["flow_packets_psr_sec"] = (
+        dataframe["flow_packets_per_sec"] = (
             (dataframe["bidirectional_packets"] / duration_s)
             .replace([np.inf, -np.inf], 0)
             .fillna(0)
@@ -222,7 +223,7 @@ class DataProcessor:
             .replace([np.inf, -np.inf], 0)
             .fillna(0)
         )
-        dataframe["dst2src_ackets_per_sec"] = (
+        dataframe["dst2src_packets_per_sec"] = (
             (dataframe["dst2src_packets"] / duration_s)
             .replace([np.inf, -np.inf], 0)
             .fillna(0)
@@ -260,7 +261,9 @@ class DataProcessor:
         if save_csv:
             print("DataFrame created from NFStreamer")
             dataframe.to_csv(output_file, index=False)
-            print(f"{pcap_file} converted to NFStreamer DataFrame and saved as CSV.")
+            print(
+                f"{os.path.basename(pcap_file)} converted to NFStreamer DataFrame and saved as CSV."
+            )
 
         print(f"Loaded 1 file with {len(dataframe)} rows")
         return dataframe

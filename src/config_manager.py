@@ -20,7 +20,7 @@ class ConfigurationManager:
 
         if os.path.exists(CONFIG_PATH):
             config.read(CONFIG_PATH)
-            print(f"Config file loaded from {CONFIG_PATH}")
+            print("Config file loaded")
             idle_timeout = int(
                 config.get(
                     "nfstream", "idle_timeout", fallback=str(DEFAULT_IDLE_TIMEOUT)
@@ -43,7 +43,7 @@ class ConfigurationManager:
     @staticmethod
     def _create_config_file(config, idle_timeout, active_timeout):
         """Create a new configuration file"""
-        print(f"Config file not found. Creating new config file at {CONFIG_PATH}")
+        print("Config file not found. Creating new config file...")
         config["nfstream"] = {
             "idle_timeout": str(idle_timeout),
             "active_timeout": str(active_timeout),

@@ -94,10 +94,12 @@ corr_threshold = 0.95
 # 1. Load and prepare the data
 print("\nStep 1: Load and prepare the data")
 if os.path.exists(cic_pkl_file_name):
-    print(f"Loading dataframe from {cic_pkl_file_name}")
+    print(f"Loading dataframe from {os.path.basename(cic_pkl_file_name)}")
     dataframe = pd.read_pickle(cic_pkl_file_name)
 else:
-    print(f"Creating dataframe from pcap files and saving to {cic_pkl_file_name}")
+    print(
+        f"Creating dataframe from pcap files and saving to {os.path.basename(cic_pkl_file_name)}"
+    )
     dataframe = DataProcessor.get_dataframe(file_paths=cic_file_paths)
     dataframe.to_pickle(cic_pkl_file_name)
 
@@ -139,7 +141,7 @@ print(f"X_test.shape: {X_test.shape}")
 
 # Scaling the data
 if scaled:
-    print("Scaleing the data")
+    print("Scaling the data")
     scaler = MinMaxScaler()
     print("New MinMaxScaler instance created")
     X_train = pd.DataFrame(
@@ -560,10 +562,12 @@ evaluate_model(rf, X_test_optimal, y_test)
 # 6. Evaluate with tcpdump data
 print("\nStep 6: Evaluate with tcpdump data")
 if os.path.exists(tcpdump_pkl_file_name):
-    print(f"Loading dataframe from {tcpdump_pkl_file_name}")
+    print(f"Loading dataframe from {os.path.basename(tcpdump_pkl_file_name)}")
     tcpdump_dataframe = pd.read_pickle(tcpdump_pkl_file_name)
 else:
-    print(f"Creating dataframe from pcap files and saving to {tcpdump_pkl_file_name}")
+    print(
+        f"Creating dataframe from pcap files and saving to {os.path.basename(tcpdump_pkl_file_name)}"
+    )
     tcpdump_dataframe = DataProcessor.get_dataframe(file_paths=tcpdump_file_paths)
     tcpdump_dataframe.to_pickle(tcpdump_pkl_file_name)
 
@@ -655,28 +659,30 @@ with pd.option_context("display.max_rows", None):
 model_dir = os.path.join(project_root, "models", "rf")
 if not os.path.exists(model_dir):
     os.makedirs(model_dir)
-    print(f"Created model directory: {model_dir}")
+    print("Created model directory: models/rf")
 
 # save the model
 model_file_name = os.path.join(model_dir, "model.pkl")
-print(f"Saving the model to {model_file_name}")
+print(f"Saving the model to {os.path.basename(model_file_name)}")
 joblib.dump(rf, model_file_name)
 print("Model saved successfully.")
 
 # save the encoder
 encoder_file_name = os.path.join(model_dir, "encoder.pkl")
-print(f"Saving the encoder to {encoder_file_name}")
+print(f"Saving the encoder to {os.path.basename(encoder_file_name)}")
 joblib.dump(categorical_encoder, encoder_file_name)
 print("Encoder saved successfully.")
 
 # save the importance_df
 importance_file_name = os.path.join(model_dir, "importance_df.pkl")
-print(f"Saving the importance DataFrame to {importance_file_name}")
+print(f"Saving the importance DataFrame to {os.path.basename(importance_file_name)}")
 importance_df.to_pickle(importance_file_name)
 print("Importance DataFrame saved successfully.")
 
 # save the optimal_features_list
 optimal_features_file_name = os.path.join(model_dir, "optimal_features_list.pkl")
-print(f"Saving the optimal features list to {optimal_features_file_name}")
+print(
+    f"Saving the optimal features list to {os.path.basename(optimal_features_file_name)}"
+)
 joblib.dump(optimal_features_list, optimal_features_file_name)
 print("Optimal features list saved successfully.")
